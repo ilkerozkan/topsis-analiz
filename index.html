@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8"> {/* Karakter seti UTF-8 olarak düzeltildi */}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İnteraktif TOPSIS Analiz Aracı (Gömülü Veri)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Tailwind gray-100 */
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .slider-container label {
+            flex-basis: 40%;
+            margin-right: 1rem;
+            font-size: 0.875rem;
+            color: #374151; /* Tailwind gray-700 */
+        }
+        .slider-container input[type="range"] {
+            flex-grow: 1;
+            accent-color: #3b82f6; /* Tailwind blue-500 */
+        }
+        .slider-container span {
+            min-width: 30px;
+            text-align: right;
+            margin-left: 1rem;
+            font-size: 0.875rem;
+            color: #4b5563; /* Tailwind gray-600 */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+        }
+        th, td {
+            border: 1px solid #e5e7eb; /* Tailwind gray-200 */
+            padding: 0.75rem;
+            text-align: left;
+            font-size: 0.875rem;
+        }
+        th {
+            background-color: #f9fafb; /* Tailwind gray-50 */
+            font-weight: 600;
+            color: #374151; /* Tailwind gray-700 */
+        }
+        td {
+            color: #4b5563; /* Tailwind gray-600 */
+        }
+        .button {
+            background-color: #3b82f6; /* Tailwind blue-500 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            border: none;
+        }
+        .button:hover {
+            background-color: #2563eb; /* Tailwind blue-600 */
+        }
+        .button:disabled {
+            background-color: #9ca3af; /* Tailwind gray-400 */
+            cursor: not-allowed;
+        }
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1f2937; /* Tailwind gray-800 */
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background-color: #4f46e5; /* Tailwind indigo-600 */
+            color: white;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .file-input-label:hover {
+            background-color: #4338ca; /* Tailwind indigo-700 */
+        }
+        #fileName {
+            margin-left: 0.75rem;
+            font-style: italic;
+            color: #6b7280; /* Tailwind gray-500 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">İnteraktif TOPSIS Analiz Aracı (Gömülü Veri)</h1>
+
+        <div class="mb-6">
+            <h2 class="section-title">1. Veri Dosyası (CSV)</h2>
+            <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+            <label for="csvFileInput" class="file-input-label">Yeni CSV Dosyası Seç (Opsiyonel)</label>
+            <span id="fileName">Varsayılan veri yüklendi</span>
+            <p class="text-xs text-gray-500 mt-1">Not: CSV dosyası virgülle ayrılmış ve ondalıklar nokta olmalıdır. İlk satır başlıkları içermelidir.</p>
+        </div>
+
+        <div class="mb-6">
+            <h2 class="section-title">2. Kriter Önem Düzeylerini Ayarla (0-100)</h2>
+            <div id="slidersContainer" class="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                </div>
+        </div>
+
+        <div class="mb-6">
+            <h2 class="section-title">3. Hesaplanan Kriter Ağırlıkları</h2>
+            <table id="weightsTable">
+                <thead>
+                    <tr>
+                        <th>Kriter</th>
+                        <th>Önem Düzeyi</th>
+                        <th>Ağırlık (Bulanık)</th>
+                        <th>Ağırlık (Filtreli)</th>
+                        <th>Ağırlık (Normalize)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="mb-6 text-center">
+            <button id="calculateTopsisButton" class="button" disabled>TOPSIS Skorlarını Hesapla</button>
+            <p id="calculationMessage" class="text-sm text-red-500 mt-2"></p>
+        </div>
+
+        <div>
+            <h2 class="section-title">4. TOPSIS Sonuçları</h2>
+            <table id="topsisResultsTable">
+                <thead>
+                    <tr>
+                        <th>Alternatif No.</th>
+                        <th>tur</th> {/* CSV başlığına göre güncellendi */}
+                        <th>kalinlik</th> {/* CSV başlığına göre güncellendi */}
+                        <th>TOPSIS Skoru (Final)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- Gömülü CSV Verisi ---
+        const DEFAULT_CSV_DATA_STRING = `tur,kalinlik,skor,kalinlik_verimi,uygulama_maliyeti,omru,yogunluk,isil_iletkenlik,isil_direnc,buhar_direnc,nem_cekme_kapasitesi,yangin_dayaniklilik,ses_yalitimi,geri_donusum,dogal_mi
+"EPS 5",5,8.37,1.54,801.03,80,16,0.038,1.32,30,1.1,3,1,0,0
+"EPS 8",8,8.37,1.06,853.20,80,16,0.038,2.1,30,1.1,3,1,0,0
+"EPS 10",10,8.37,0.95,887.99,80,16,0.038,2.63,30,1.1,3,1,0,0
+"EPS-K 5",5,9.00,1.95,817.11,80,16,0.035,1.3,35,1.1,3,1,0,0
+"EPS-K 8",8,9.00,1.07,878.93,80,16,0.035,2.08,35,1.1,3,1,0,0
+"EPS-K 10",10,9.00,0.94,920.14,80,16,0.035,2.6,35,1.1,3,1,0,0
+"XPS 5",5,8.36,1.55,966.08,100,20,0.035,1.43,80,0.5,3,1,0,0
+"XPS 8",8,8.36,1.20,1050.08,100,20,0.035,2.285,80,0.5,3,1,0,0
+"XPS 10",10,8.36,0.84,1197.08,100,20,0.035,2.86,80,0.5,3,1,0,0
+"TAŞYÜNÜ 5",5,10.65,2.20,962.99,100,100,0.036,1.35,1,2,5,3,0,0
+"TAŞYÜNÜ 8",8,10.65,1.35,1067.33,100,100,0.036,2.2,1,2,5,3,0,0
+"TAŞYÜNÜ 10",10,10.65,1.08,1139.14,100,100,0.037,2.7,1,2,5,3,0,0
+"CAMYÜNÜ 10",10,9.51,0.97,1100.00,70,15,0.044,2.25,0.1,1,5,3,0,0
+"KOYUNYÜNÜ 1.5",1.5,9.88,5.72,400.00,100,170,0.039,0.71,2,33,2,3,1,1
+"KOYUNYÜNÜ 2.5",2.5,9.88,4.58,600.00,100,170,0.039,0.71,2,33,2,3,1,1
+"KOYUNYÜNÜ 4",4,9.88,2.57,800.00,100,170,0.039,0.71,2,33,2,3,1,1
+"SIVA 2",2,7.87,4.45,510.54,80,500,0.046,0.435,7,15,5,1,0,0
+"SIVA 3",3,7.87,1.93,682.68,80,500,0.046,0.065,7,15,5,1,0,0
+"SIVA 4",4,7.87,2.35,854.81,80,500,0.046,0.0869,7,15,5,1,0,0`;
+
+        // --- Konfigürasyon ve Kullanıcı Girdileri ---
+        const PRIORITY_SCORES_INITIAL = {
+            "Skor (Isı Performansı)": 0,
+            "Kalınlık Verimi": 0,
+            "Uygulama Maliyeti": 0,
+            "Ömrü": 0,
+            "Yoğunluk": 0,
+            "Isıl İletkenlik": 0,
+            "Isıl Direnç": 0,
+            "Buhar Direnç Katsayısı": 0,
+            "Nem Çekme Kapasitesi": 100,
+            "Yangın Dayanımı": 0,
+            "Ses Yalıtımı": 0,
+            "Geri Dönüşüm": 0,
+            "Doğal Malzeme": 0
+        };
+
+        // COLUMN_MAPPING: Slider/Tablo kriter adları -> CSV dosyasındaki gerçek sütun adları
+        const COLUMN_MAPPING = {
+            "Skor (Isı Performansı)": "skor",
+            "Kalınlık Verimi": "kalinlik_verimi",
+            "Uygulama Maliyeti": "uygulama_maliyeti",
+            "Ömrü": "omru",
+            "Yoğunluk": "yogunluk",
+            "Isıl İletkenlik": "isil_iletkenlik",
+            "Isıl Direnç": "isil_direnc",
+            "Buhar Direnç Katsayısı": "buhar_direnc",
+            "Nem Çekme Kapasitesi": "nem_cekme_kapasitesi",
+            "Yangın Dayanımı": "yangin_dayaniklilik",
+            "Ses Yalıtımı": "ses_yalitimi",
+            "Geri Dönüşüm": "geri_donusum",
+            "Doğal Malzeme": "dogal_mi"
+        };
+
+        // BENEFIT ve COST kriterleri CSV'deki gerçek sütun adlarını kullanmalı
+        const BENEFIT_CRITERIA = [
+            "skor", "kalinlik_verimi", "omru", "isil_direnc",
+            "yangin_dayaniklilik", "ses_yalitimi",
+            "geri_donusum", "dogal_mi"
+        ];
+        const COST_CRITERIA = [
+            "uygulama_maliyeti", "yogunluk",
+            "isil_iletkenlik", "buhar_direnc",
+            "nem_cekme_kapasitesi"
+        ];
+
+        const FUZZY_COEFFICIENTS = {"Çok Az": 0.1, "Az": 0.3, "Orta": 0.5, "Yüksek": 0.7, "Çok Yüksek": 0.9};
+        const WEIGHT_THRESHOLD = 0.1;
+
+        let currentPriorityScores = { ...PRIORITY_SCORES_INITIAL };
+        let parsedCsvData = null;
+
+        // --- DOM Elementleri ---
+        const slidersContainer = document.getElementById('slidersContainer');
+        const weightsTableBody = document.getElementById('weightsTable').getElementsByTagName('tbody')[0];
+        const topsisResultsTableBody = document.getElementById('topsisResultsTable').getElementsByTagName('tbody')[0];
+        const csvFileInput = document.getElementById('csvFileInput');
+        const fileNameDisplay = document.getElementById('fileName');
+        const calculateTopsisButton = document.getElementById('calculateTopsisButton');
+        const calculationMessage = document.getElementById('calculationMessage');
+
+        // --- Fonksiyon Tanımları ---
+        function fuzzy_membership(value) {
+            return {
+                "Çok Az": value <= 30 ? Math.max(0, (30 - value) / 30) : 0,
+                "Az": (value >= 10 && value <= 50) ? Math.max(0, Math.min((value - 10) / 20, (50 - value) / 20)) : 0,
+                "Orta": (value >= 30 && value <= 70) ? Math.max(0, Math.min((value - 30) / 20, (70 - value) / 20)) : 0,
+                "Yüksek": (value >= 50 && value <= 90) ? Math.max(0, Math.min((value - 50) / 20, (90 - value) / 20)) : 0,
+                "Çok Yüksek": value >= 70 ? Math.max(0, (value - 70) / 30) : 0
+            };
+        }
+
+        function calculate_fuzzy_weights(priorityScores, coefficients, threshold) {
+            let rows = [];
+            for (const kriter in priorityScores) {
+                const onem = priorityScores[kriter];
+                const mu = fuzzy_membership(onem);
+                let agirlik_bulanik = 0;
+                for (const sev in coefficients) {
+                    agirlik_bulanik += mu[sev] * coefficients[sev];
+                }
+                const agirlik_filtrelenmis = agirlik_bulanik <= threshold ? 0 : agirlik_bulanik;
+                rows.push({
+                    "Kriter": kriter,
+                    "Önem Düzeyi (0-100)": onem,
+                    "Ağırlık (Bulanık)": agirlik_bulanik,
+                    "Ağırlık (Filtreli)": agirlik_filtrelenmis
+                });
+            }
+            const toplam_filtrelenmis_agirlik = rows.reduce((sum, row) => sum + row["Ağırlık (Filtreli)"], 0);
+            rows.forEach(row => {
+                row["Ağırlık (Normalize)"] = (toplam_filtrelenmis_agirlik > 0) ? (row["Ağırlık (Filtreli)"] / toplam_filtrelenmis_agirlik) : 0;
+            });
+            return rows;
+        }
+        
+        function normalize_data(matrix, columns, benefitCriteria, costCriteria) {
+            const numRows = matrix.length;
+            if (numRows === 0) return [];
+            const numCols = columns.length;
+            let normalizedMatrix = matrix.map(row => ({...row})); 
+
+            for (let j = 0; j < numCols; j++) {
+                const colName = columns[j];
+                let columnValues = matrix.map(row => parseFloat(String(row[colName]).replace(",","."))).filter(v => !isNaN(v));
+                
+                if(columnValues.length === 0) continue;
+
+                let minVal = Math.min(...columnValues);
+                let maxVal = Math.max(...columnValues);
+
+                for (let i = 0; i < numRows; i++) {
+                    let val = parseFloat(String(normalizedMatrix[i][colName]).replace(",","."));
+                    if (isNaN(val)) {
+                        normalizedMatrix[i][colName] = 0; 
+                        continue;
+                    }
+                    let normalizedVal;
+                    if (maxVal === minVal) {
+                        normalizedVal = (maxVal > 0) ? 1 : 0; 
+                    } else {
+                        normalizedVal = (val - minVal) / (maxVal - minVal);
+                    }
+
+                    if (costCriteria.includes(colName)) {
+                        normalizedMatrix[i][colName] = 1 - normalizedVal;
+                    } else {
+                         normalizedMatrix[i][colName] = normalizedVal;
+                    }
+                }
+            }
+            return normalizedMatrix;
+        }
+
+        function weight_data(normalizedMatrix, weightsArray, actualColumnsForAnalysis) {
+             let weightedMatrix = normalizedMatrix.map(row => ({...row}));
+             for (let i = 0; i < weightedMatrix.length; i++) {
+                for (let j = 0; j < actualColumnsForAnalysis.length; j++) {
+                    const colName = actualColumnsForAnalysis[j];
+                    if (typeof weightedMatrix[i][colName] === 'number') { // Sadece sayısal değerleri çarp
+                        weightedMatrix[i][colName] *= weightsArray[j];
+                    }
+                }
+            }
+            return weightedMatrix;
+        }
+
+        function calculate_topsis_scores(dfWeightedNorm, actualColumnsForAnalysis) {
+            if (!dfWeightedNorm || dfWeightedNorm.length === 0) return [];
+
+            const numAlternatives = dfWeightedNorm.length;
+            const numCriteria = actualColumnsForAnalysis.length;
+
+            let idealSolution = new Array(numCriteria).fill(-Infinity);
+            let antiIdealSolution = new Array(numCriteria).fill(Infinity);
+
+            for (let colIdx = 0; colIdx < numCriteria; colIdx++) {
+                const colName = actualColumnsForAnalysis[colIdx];
+                for (let i = 0; i < numAlternatives; i++) {
+                    const val = dfWeightedNorm[i][colName];
+                     if (typeof val === 'number' && !isNaN(val)) { // Sadece geçerli sayıları dikkate al
+                        if (val > idealSolution[colIdx]) idealSolution[colIdx] = val;
+                        if (val < antiIdealSolution[colIdx]) antiIdealSolution[colIdx] = val;
+                    }
+                }
+            }
+            
+            let dPlus = new Array(numAlternatives).fill(0);
+            let dMinus = new Array(numAlternatives).fill(0);
+
+            for (let i = 0; i < numAlternatives; i++) {
+                let sumSqPlus = 0;
+                let sumSqMinus = 0;
+                for (let j = 0; j < numCriteria; j++) {
+                    const colName = actualColumnsForAnalysis[j];
+                    const val = dfWeightedNorm[i][colName];
+                    if (typeof val === 'number' && !isNaN(val)) { // Sadece geçerli sayıları dikkate al
+                        sumSqPlus += Math.pow(val - idealSolution[j], 2);
+                        sumSqMinus += Math.pow(val - antiIdealSolution[j], 2);
+                    }
+                }
+                dPlus[i] = Math.sqrt(sumSqPlus);
+                dMinus[i] = Math.sqrt(sumSqMinus);
+            }
+
+            let topsisScores = new Array(numAlternatives);
+            for (let i = 0; i < numAlternatives; i++) {
+                const denominator = dPlus[i] + dMinus[i];
+                if (denominator === 0) {
+                    let idealEqualsAntiIdeal = idealSolution.every((val, index) => val === antiIdealSolution[index]);
+                    topsisScores[i] = idealEqualsAntiIdeal ? 0.5 : NaN;
+                } else {
+                    topsisScores[i] = dMinus[i] / denominator;
+                }
+            }
+            return topsisScores;
+        }
+
+        // --- UI Güncelleme Fonksiyonları ---
+        function createSliders() {
+            slidersContainer.innerHTML = ''; 
+            for (const kriter in PRIORITY_SCORES_INITIAL) {
+                const value = currentPriorityScores[kriter];
+                const sliderDiv = document.createElement('div');
+                sliderDiv.className = 'slider-container';
+                const label = document.createElement('label');
+                label.htmlFor = `slider-${kriter.replace(/\s+/g, '-')}`;
+                label.textContent = kriter;
+                const rangeInput = document.createElement('input');
+                rangeInput.type = 'range';
+                rangeInput.id = `slider-${kriter.replace(/\s+/g, '-')}`;
+                rangeInput.min = 0;
+                rangeInput.max = 100;
+                rangeInput.value = value;
+                rangeInput.dataset.kriter = kriter; 
+                const valueSpan = document.createElement('span');
+                valueSpan.id = `slider-value-${kriter.replace(/\s+/g, '-')}`;
+                valueSpan.textContent = value;
+                rangeInput.addEventListener('input', (event) => {
+                    const newValue = parseInt(event.target.value);
+                    currentPriorityScores[event.target.dataset.kriter] = newValue;
+                    document.getElementById(`slider-value-${event.target.dataset.kriter.replace(/\s+/g, '-')}`).textContent = newValue;
+                    updateWeightsTable();
+                });
+                sliderDiv.appendChild(label);
+                sliderDiv.appendChild(rangeInput);
+                sliderDiv.appendChild(valueSpan);
+                slidersContainer.appendChild(sliderDiv);
+            }
+            updateWeightsTable(); 
+        }
+
+        function updateWeightsTable() {
+            const weights = calculate_fuzzy_weights(currentPriorityScores, FUZZY_COEFFICIENTS, WEIGHT_THRESHOLD);
+            weightsTableBody.innerHTML = ''; 
+            weights.forEach(row => {
+                const tr = weightsTableBody.insertRow();
+                tr.insertCell().textContent = row.Kriter;
+                tr.insertCell().textContent = row["Önem Düzeyi (0-100)"];
+                tr.insertCell().textContent = row["Ağırlık (Bulanık)"].toFixed(4);
+                tr.insertCell().textContent = row["Ağırlık (Filtreli)"].toFixed(4);
+                tr.insertCell().textContent = row["Ağırlık (Normalize)"].toFixed(4);
+            });
+        }
+
+        function updateTopsisResultsTable(resultsWithData) {
+            topsisResultsTableBody.innerHTML = ''; 
+            if (!resultsWithData || resultsWithData.length === 0) {
+                const tr = topsisResultsTableBody.insertRow();
+                const td = tr.insertCell();
+                td.colSpan = 4; 
+                td.textContent = "Hesaplanacak veri yok veya bir hata oluştu.";
+                td.className = "text-center text-gray-500";
+                return;
+            }
+            resultsWithData.sort((a, b) => b.topsisScore - a.topsisScore); 
+            resultsWithData.forEach((item, index) => {
+                const tr = topsisResultsTableBody.insertRow();
+                tr.insertCell().textContent = item.originalIndex + 1; 
+                tr.insertCell().textContent = item.data['tur'] !== undefined ? item.data['tur'] : 'N/A'; // CSV başlığına göre güncellendi
+                tr.insertCell().textContent = item.data['kalinlik'] !== undefined ? String(item.data['kalinlik']).replace(".",",") : 'N/A'; // CSV başlığına göre güncellendi ve ondalık gösterim
+                tr.insertCell().textContent = isNaN(item.topsisScore) ? "Hesaplanamadı" : item.topsisScore.toFixed(4);
+            });
+        }
+        
+        // CSV metnini işleyen fonksiyon
+        function parseCsvText(text, sourceName = "Veri") {
+            try {
+                const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+                if (lines.length < 2) {
+                    throw new Error(`${sourceName} içinde yeterli veri yok (başlık + en az bir veri satırı gerekli).`);
+                }
+                
+                // Basit CSV ayrıştırma: Tırnak içindeki virgülleri dikkate almaz, bu veri için yeterli.
+                const headers = lines[0].split(',').map(h => h.trim().toLowerCase()); // Başlıkları küçük harfe çevir
+                
+                // Gerekli başlıkların kontrolü (COLUMN_MAPPING değerleri ile)
+                const expectedHeaders = Object.values(COLUMN_MAPPING).map(h => h.toLowerCase());
+                const missingHeaders = expectedHeaders.filter(eh => !headers.includes(eh));
+                if (missingHeaders.length > 0 && sourceName !== "Varsayılan CSV Verisi") { // Varsayılan veri için bu uyarıyı atla
+                    console.warn(`Uyarı: Yüklenen CSV'de beklenen bazı başlıklar bulunamadı: ${missingHeaders.join(', ')}. Bu durum hesaplamaları etkileyebilir.`);
+                }
+
+                parsedCsvData = lines.slice(1).map(line => {
+                    // Basit split, tırnak içindeki virgülleri düzgün işlemez.
+                    // Veri formatınızda tırnak içinde virgül yoksa bu çalışır.
+                    // "EPS 5",5 -> ["\"EPS 5\"", "5"] şeklinde ayrıştırır. Tırnakları temizlemek gerekebilir.
+                    const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || line.split(',');
+
+                    let rowObject = {};
+                    headers.forEach((header, index) => {
+                        let value = values[index] ? values[index].trim() : "";
+                        // Tırnakları temizle (eğer varsa)
+                        if (value.startsWith('"') && value.endsWith('"')) {
+                            value = value.substring(1, value.length - 1);
+                        }
+                        rowObject[header] = value; // Başlıkları küçük harfle sakla
+                    });
+                    return rowObject;
+                });
+
+                calculateTopsisButton.disabled = false;
+                calculationMessage.textContent = "";
+                console.log(`${sourceName} başarıyla işlendi:`, parsedCsvData);
+                fileNameDisplay.textContent = `${sourceName} yüklendi.`;
+                return true;
+            } catch (error) {
+                parsedCsvData = null;
+                calculateTopsisButton.disabled = true;
+                calculationMessage.textContent = `${sourceName} okuma hatası: ${error.message}`;
+                fileNameDisplay.textContent = `Hatalı ${sourceName.toLowerCase()} veya format!`;
+                console.error(`${sourceName} okuma hatası:`, error);
+                return false;
+            }
+        }
+
+        // --- Olay Dinleyicileri ---
+        csvFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    parseCsvText(e.target.result, file.name);
+                };
+                reader.onerror = () => {
+                     parsedCsvData = null;
+                     calculateTopsisButton.disabled = true;
+                     calculationMessage.textContent = "Dosya okunurken bir hata oluştu.";
+                     fileNameDisplay.textContent = "Okuma hatası!";
+                };
+                reader.readAsText(file, "UTF-8"); // UTF-8 ile okuma
+            } else {
+                // Dosya seçilmediyse varsayılan veriyi tekrar yüklemeyi deneyebilir veya mesaj gösterebilir.
+                // Şimdilik sadece mesajı güncelliyoruz.
+                if (!parsedCsvData && DEFAULT_CSV_DATA_STRING) { // Eğer varsayılan veri varsa ve hiçbiri yüklenmemişse
+                    if(parseCsvText(DEFAULT_CSV_DATA_STRING, "Varsayılan CSV Verisi")){
+                         fileNameDisplay.textContent = "Varsayılan veri yüklendi.";
+                    } else {
+                         fileNameDisplay.textContent = "Dosya seçilmedi, varsayılan veri de yüklenemedi.";
+                    }
+                } else if (!parsedCsvData) {
+                     fileNameDisplay.textContent = "Dosya seçilmedi";
+                }
+            }
+        });
+
+        calculateTopsisButton.addEventListener('click', () => {
+            if (!parsedCsvData) {
+                calculationMessage.textContent = "Lütfen önce geçerli bir CSV verisi sağlayın.";
+                return;
+            }
+            calculationMessage.textContent = "Hesaplanıyor...";
+
+            const df_calculated_weights = calculate_fuzzy_weights(currentPriorityScores, FUZZY_COEFFICIENTS, WEIGHT_THRESHOLD);
+            const active_weights_df = df_calculated_weights.filter(w => w["Ağırlık (Normalize)"] > 0);
+
+            if (active_weights_df.length === 0) {
+                calculationMessage.textContent = "Aktif kriter bulunamadı. TOPSIS hesaplaması yapılamaz.";
+                updateTopsisResultsTable([]);
+                return;
+            }
+
+            let actual_columns_for_analysis = [];
+            let weights_array_for_analysis = [];
+
+            try {
+                actual_columns_for_analysis = active_weights_df.map(w => {
+                    const mappedCol = COLUMN_MAPPING[w.Kriter];
+                    if (!mappedCol) {
+                        throw new Error(`'${w.Kriter}' kriteri için COLUMN_MAPPING içinde eşleşme bulunamadı.`);
+                    }
+                    return mappedCol.toLowerCase(); // Küçük harf kullan
+                });
+                weights_array_for_analysis = active_weights_df.map(w => w["Ağırlık (Normalize)"]);
+            } catch (e) {
+                calculationMessage.textContent = `Hata: ${e.message}`;
+                updateTopsisResultsTable([]);
+                return;
+            }
+            
+            const firstDataRowKeys = parsedCsvData[0] ? Object.keys(parsedCsvData[0]).map(k => k.toLowerCase()) : [];
+            const missing_cols = actual_columns_for_analysis.filter(col => !firstDataRowKeys.includes(col));
+            if (missing_cols.length > 0) {
+                calculationMessage.textContent = `Hata: CSV'de bulunamayan sütunlar: ${missing_cols.join(', ')}. Sütun adlarını kontrol edin.`;
+                updateTopsisResultsTable([]);
+                return;
+            }
+
+            const df_subset_for_analysis = parsedCsvData.map(row => {
+                let newRow = {};
+                actual_columns_for_analysis.forEach(colName => {
+                    // CSV'den veri alırken de küçük harf anahtar kullan
+                    newRow[colName] = row[colName.toLowerCase()];
+                });
+                return newRow;
+            });
+
+            let df_norm = normalize_data([...df_subset_for_analysis], actual_columns_for_analysis, BENEFIT_CRITERIA.map(c=>c.toLowerCase()), COST_CRITERIA.map(c=>c.toLowerCase()));
+            let df_weighted_norm = weight_data([...df_norm], weights_array_for_analysis, actual_columns_for_analysis);
+            const topsis_scores_array = calculate_topsis_scores(df_weighted_norm, actual_columns_for_analysis);
+
+            const resultsWithData = parsedCsvData.map((originalRow, index) => ({
+                data: originalRow, // Orijinal satır verisi (küçük harf anahtarlı)
+                topsisScore: topsis_scores_array[index],
+                originalIndex: index 
+            }));
+            
+            updateTopsisResultsTable(resultsWithData);
+            calculationMessage.textContent = "TOPSIS skorları başarıyla hesaplandı.";
+        });
+
+        // --- Başlangıç ---
+        document.addEventListener('DOMContentLoaded', () => {
+            createSliders(); 
+            if (parseCsvText(DEFAULT_CSV_DATA_STRING, "Varsayılan CSV Verisi")) {
+                // Başarılı, buton zaten parseCsvText içinde etkinleştirildi.
+            } else {
+                // Varsayılan veri yüklenemezse butonu devre dışı bırak
+                calculateTopsisButton.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>
